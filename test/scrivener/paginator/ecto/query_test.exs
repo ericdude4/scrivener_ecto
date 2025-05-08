@@ -233,6 +233,32 @@ defmodule Scrivener.Paginator.Ecto.QueryTest do
       assert page.total_entries == 130
     end
 
+    test "will respect max_total_entries passed to paginate" do
+      create_posts()
+
+      page =
+        Post
+        |> Post.published()
+        |> Scrivener.Ecto.Repo.paginate(options: [max_total_entries: 4])
+
+      assert length(page.entries) == 5
+      assert page.total_entries == 4
+    end
+
+    test "will respect max_total_entries passed to paginate with a group by clause on field on joined table" do
+      create_posts()
+
+      page =
+        Post
+        |> join(:inner, [p], c in assoc(p, :comments))
+        |> group_by([p, c], c.body)
+        |> select([p, c], {c.body, count("*")})
+        |> Scrivener.Ecto.Repo.paginate(options: [max_total_entries: 1])
+
+      assert length(page.entries) == 2
+      assert page.total_entries == 1
+    end
+
     test "will use total_pages if page_numer is too large" do
       posts = create_posts()
 

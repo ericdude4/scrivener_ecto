@@ -67,13 +67,30 @@ defimpl Scrivener.Paginater, for: Ecto.Query do
     |> exclude(:order_by)
     |> exclude(:select)
     |> select([{x, source_index}], struct(x, ^[field]))
+    |> maybe_limit_by_max_total_entries(options)
     |> subquery()
     |> select(count("*"))
     |> repo.one(options)
   end
 
   defp aggregate(query, repo, options) do
-    repo.aggregate(query, :count, options)
+    query
+    |> maybe_limit_by_max_total_entries(options)
+    |> repo.aggregate(:count, options)
+  end
+
+  defp maybe_limit_by_max_total_entries(query, options) do
+    case Keyword.get(options, :max_total_entries) do
+      nil ->
+        query
+
+      max_total_entries when is_integer(max_total_entries) and max_total_entries > 0 ->
+        limit(query, ^max_total_entries)
+
+      otherwise ->
+        raise ArgumentError,
+              "max_total_entries must be a positive integer, got: #{inspect(otherwise)}"
+    end
   end
 
   defp total_pages(0, _), do: 1
